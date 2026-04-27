@@ -32,7 +32,7 @@ spec:
           # Delete files and directories starting with .. plus any other character
           rm -rf "${WORKSPACE_SOURCE_PATH}"/..?*
         fi
-
+---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -57,7 +57,7 @@ spec:
 
         echo "***** Running npm install *****"
         npm install
-
+---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -75,3 +75,34 @@ spec:
 
         echo "***** Running jasminetests *****"
         npx jasmine
+---
+    - name: npminstall
+      workspaces:
+      - name: source
+        workspace: pipeline-workspace
+      taskRef:
+        name: npm
+      runAfter:
+        - clone
+
+    - name: tests
+      workspaces:
+      - name: source
+        workspace: pipeline-workspace
+      taskRef:
+        name: jasmine
+      runAfter:
+        - npminstall
+
+    - name: build
+      workspaces:
+      - name: source
+        workspace: pipeline-workspace
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      params:
+      - name: IMAGE
+        value: "us.icr.io/$(context.pipelineRun.namespace)/$(params.app-name)"
+      runAfter:
+        - tests
